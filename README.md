@@ -1,7 +1,12 @@
 
 # Entity-embedding-rossmann 
 
-This is a Pytorch implementation with sklearn model interface
+This is a Pytorch implementation with sklearn model interface.
+
+This reproduces the code used in the paper **"[Entity Embeddings of Categorical Variables](http://arxiv.org/abs/1604.06737)"**. 
+
+Original version in Keras version can be found in: 
+**Entity Embeddings of Categorical Variables [REPO](https://github.com/entron/entity-embedding-rossmann)**.
 
 
 ```python
@@ -110,7 +115,7 @@ print('MAPE: %s' % eval_utils.MAPE(
     MAPE: 0.09726746216202672
 
 
-## Original output from repo code:
+**Original output from "[REPO](https://github.com/entron/entity-embedding-rossmann)" code**:
     
 `
 Using TensorFlow backend.
@@ -260,9 +265,10 @@ print('MAPE: %s' % eval_utils.MAPE(
     MAPE: 0.14955005536869034
 
 
-## Original output from repo code:
+**Original output from [REPO](https://github.com/entron/entity-embedding-rossmann) code**:
 
-`
+
+```
 .
 .
 .
@@ -280,4 +286,4 @@ print('MAPE: %s' % eval_utils.MAPE(
 [2998]  train-rmse:0.148622
 [2999]  train-rmse:0.148584
 Result on validation data:  0.14691216270195093
-`
+```
