@@ -18,8 +18,7 @@ import torch.utils.data as data_utils
 from sklearn.utils.validation import check_X_y
 from sklearn.model_selection import train_test_split
 
-#torch.manual_seed(1)
-PATH = '/home/raul/data/rossmann/'
+torch.manual_seed(1)
 
 class EntEmbNNRegression(nn.Module):
     '''
@@ -132,7 +131,7 @@ class EntEmbNNRegression(nn.Module):
         self.y_test = y_test
         
     
-    def make_dataloader(self, X, y=None, shuffle=True, num_workers=8):
+    def make_dataloader(self, X, y=None, shuffle=False, num_workers=8):
         '''
         Wraps a dataloader to iterate over (X, y)
         '''
@@ -364,6 +363,7 @@ class EntEmbNNRegression(nn.Module):
         '''
         Makes N training iterations
         '''
+        
         self.epoch_cnt = 0
         while(self.epoch_cnt < self.epochs):
             
@@ -466,3 +466,40 @@ class EntEmbNNRegression(nn.Module):
         
         if self.verbose:
             print(msg % (msg_params))
+
+def test():
+    import pandas as pd
+    import datasets
+    import eval_utils
+    import numpy as np
+    
+    import EntEmbNN as eenn
+    
+    X, y, X_test, y_test = datasets.get_X_train_test_data()
+    
+    for data in [X, X_test]:
+        data.drop('Open', inplace=True, axis=1)
+    
+    models = []
+    for _ in range(5):
+        m = eenn.EntEmbNNRegression(
+            X_y_test = (X_test, y_test),
+            cat_emb_dim={
+                'Store': 10,
+                'DayOfWeek': 6,
+                'Promo': 1,
+                'Year': 2,
+                'Month': 6,
+                'Day': 10,
+                'State': 6})
+        self=m
+        m.fit(X, y)
+        models.append(m)
+        print('\n')
+    
+    test_y_pred = np.array([model.predict(X_test) for model in models])
+    test_y_pred = test_y_pred.mean(axis=0)
+    
+    print('MAPE: %s' % eval_utils.MAPE(
+        y_true=y_test.values.flatten(),
+        y_pred=test_y_pred))
