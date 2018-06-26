@@ -58,7 +58,7 @@ class EntEmbNNRegression(nn.Module):
         #drop_out_emb = 0.,
         batch_size = 128,
         X_y_test = None,
-        allow_cuda = True,
+        allow_cuda = False,
         act_func = 'relu',
         train_size = None,
         y_range = None,
@@ -328,6 +328,7 @@ class EntEmbNNRegression(nn.Module):
         self = m
         
         '''
+        
         self.X = X.copy()
         self.y = y.copy()
         
@@ -344,6 +345,9 @@ class EntEmbNNRegression(nn.Module):
         self.init_embeddings()
         self.init_layers()
         
+        # self.embeddings['Store'].weight.data
+        # self.dense_layers['l3'].weight.data
+        
         #GPU Flag
         if self.allow_cuda:
             self.cuda()
@@ -353,7 +357,8 @@ class EntEmbNNRegression(nn.Module):
         
         self.optimizer = torch.optim.Adam(
             self.parameters(),
-            lr=self.lr)
+            lr=self.lr, 
+            weight_decay=0)
         
         self.log_losses = []
         #self.epoch_cnt = 0
@@ -379,6 +384,7 @@ class EntEmbNNRegression(nn.Module):
             )
             
             for batch_idx, (data, target) in enumerate(dataloader):
+                
                 self.optimizer.zero_grad()
                 
                 if self.allow_cuda:
@@ -391,18 +397,21 @@ class EntEmbNNRegression(nn.Module):
                     output.reshape(1, -1)[0],
                     target.float())
                 
+                # self.dense_layers['l1'].weight.data
                 loss.backward()
                 self.optimizer.step()
                 
-                self.log_losses.append(loss.data[0])
-                
+                self.log_losses.append(loss.item())
+            
+            self.log_losses[:100]
+            
             self.epoch_cnt += 1
             self.eval_model()
     
     def predict(self, X, log_scale=True, format_X=True):
         '''
         Predict scores
-        
+        X = self.X_train
         '''
         
         #Set pytorch model in eval. mode
@@ -444,6 +453,8 @@ class EntEmbNNRegression(nn.Module):
             log_scale=False, 
             format_X=False)
         
+        self.format_y_inv(train_y_pred)
+        
         loss_train = pd.Series(
             self.y_train - train_y_pred
         ).abs().mean()
@@ -471,9 +482,7 @@ def test():
     import pandas as pd
     import datasets
     import eval_utils
-    import numpy as np
-    
-    import EntEmbNN as eenn
+    import numpy as np    
     
     X, y, X_test, y_test = datasets.get_X_train_test_data()
     
@@ -482,7 +491,7 @@ def test():
     
     models = []
     for _ in range(5):
-        m = eenn.EntEmbNNRegression(
+        m = EntEmbNNRegression(
             X_y_test = (X_test, y_test),
             cat_emb_dim={
                 'Store': 10,
@@ -492,6 +501,7 @@ def test():
                 'Month': 6,
                 'Day': 10,
                 'State': 6})
+    
         self=m
         m.fit(X, y)
         models.append(m)
@@ -503,3 +513,10 @@ def test():
     print('MAPE: %s' % eval_utils.MAPE(
         y_true=y_test.values.flatten(),
         y_pred=test_y_pred))
+    
+    eval_utils.eval_regression(
+        y_true=y_test, 
+        y_pred=test_y_pred)
+    
+    
+    (m.format_y(y_test) - m.format_y(test_y_pred)).abs().mean()
