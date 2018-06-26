@@ -468,7 +468,7 @@ class EntEmbNNRegression(nn.Module):
             self.y_test - test_y_pred
         ).abs().mean()
         
-        msg = "\t[%s] loss_train:%s loss_test:%s"
+        msg = "\t[%s] MAPE train:%s MAPE test:%s"
         
         msg_params = (
             self.epoch_cnt, 
@@ -502,7 +502,6 @@ def test():
                 'Day': 10,
                 'State': 6})
     
-        self=m
         m.fit(X, y)
         models.append(m)
         print('\n')
@@ -517,6 +516,3 @@ def test():
     eval_utils.eval_regression(
         y_true=y_test, 
         y_pred=test_y_pred)
-    
-    
-    (m.format_y(y_test) - m.format_y(test_y_pred)).abs().mean()
