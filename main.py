@@ -58,7 +58,7 @@ for _ in range(5):
         drop_out_layers = [0., 0.],
         drop_out_emb = 0.,
         loss_function='L1Loss',
-        train_size = .0,
+        train_size = 1.,
         y_max = max(y_train.max(), y_test.max()))
     
     m.fit(X_train, y_train)
