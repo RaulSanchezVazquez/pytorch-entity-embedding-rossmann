@@ -120,7 +120,7 @@ print('MAPE: %s' % eval_utils.MAPE(
 
 ## **Original output from [REPO](https://github.com/entron/entity-embedding-rossmann) code**:
     
-`
+```
 Using TensorFlow backend.
 Number of samples used for training: 200000
 Fitting NN_with_EntityEmbedding...
@@ -234,7 +234,7 @@ Epoch 9/10
 Epoch 10/10
 200000/200000 [==============================] - 12s 61us/step - loss: 0.0068 - val_loss: 0.0100
 Result on validation data:  0.10491748954856149
-`
+```
 
 ## **XGB performance**:
 
