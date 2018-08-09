@@ -50,12 +50,14 @@ def download_rossmann():
                 output_file.write(chunk)
         output_file.close()
         
-        subprocess.call(f'tar xvf {ROSSMANN_PATH} -C {DATAPATH}'.split(' '))
+        subprocess.call((
+            'tar xvf %s -C %s' % (ROSSMANN_PATH, DATAPATH) 
+            ).split(' '))
     except:
         print(
             "Download Failed, "
             "please manually download data in "
-            f"{DATAPATH}")
+            "%s" % DATAPATH)
         
 def csv2dicts(csvfile):
     '''
@@ -129,23 +131,23 @@ def get_X_train_test_data(simulate_sparsity=True):
         download_rossmann()
     
     if simulate_sparsity:
-        dataset_output_path = f'{DATAPATH}/X_train_test_sparse.hdf'
+        dataset_output_path = '%s/X_train_test_sparse.hdf' % DATAPATH
     else:
-        dataset_output_path = f'{DATAPATH}/X_train_test_no_sparse.hdf'
+        dataset_output_path = '%s/X_train_test_no_sparse.hdf' % DATAPATH
     
     if not os.path.exists(dataset_output_path):
-        train_data_path = f"{DATAPATH}/train.csv"
+        train_data_path = "%s/train.csv" % DATAPATH
         with open(train_data_path) as csvfile:
             train_data = csv.reader(csvfile, delimiter=',')
             train_data = csv2dicts(train_data)
             train_data = train_data[::-1]
         
-        store_data_path = f"{DATAPATH}/store.csv"
+        store_data_path = "%s/store.csv" % DATAPATH
         with open(store_data_path) as csvfile:
             store_data = csv.reader(csvfile, delimiter=',')
             store_data = csv2dicts(store_data)
         
-        store_states_path = f"{DATAPATH}/store_states.csv"    
+        store_states_path = "%s/store_states.csv" % DATAPATH
         with open(store_states_path) as csvfile2:
             state_data = csv.reader(csvfile2, delimiter=',')
             state_data = csv2dicts(state_data)
