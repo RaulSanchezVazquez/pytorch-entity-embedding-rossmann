@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
-Created on Thu Aug  9 15:07:06 2018
+Created on Thu Aug  9 14:25:31 2018
 
 @author: lsanchez
 """
@@ -9,15 +9,10 @@ Created on Thu Aug  9 15:07:06 2018
 
 import numpy as np
 import pandas as pd
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-import torch.utils.data as data_utils
-
-from sklearn.utils.validation import check_X_y
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import MinMaxScaler
 from sklearn import metrics
@@ -60,7 +55,7 @@ class EntEmbNNBinary(NeuralNet):
         drop_out_layers = [0.5, 0.5],
         drop_out_emb = 0.2,
         act_func = 'relu',
-        loss_function='SmoothL1Loss',
+        loss_function='BCELoss',
         train_size = .8,
         y_max=None,
         batch_size = 128,
@@ -72,12 +67,11 @@ class EntEmbNNBinary(NeuralNet):
         random_seed=None,
         verbose=True):
         
-        super(EntEmbNNRegression, self).__init__()
+        super(EntEmbNNBinary, self).__init__()
         
         # Model specific params.
         self.cat_emb_dim = cat_emb_dim
         self.dense_layers = dense_layers
-        self.y_max = y_max
         
         # Reg. parameters
         self.drop_out_layers = drop_out_layers
@@ -103,23 +97,18 @@ class EntEmbNNBinary(NeuralNet):
         self.epochs_reports = []
         
         self.labelencoders = {}
-        self.scaler = None
         
         self.num_features = None
         self.cat_features = None
         self.layers = {}
         
-        self.default_nan = None
-        self.y_min = None
-        self.ly_max = None
-        
-    def get_loss(self):
-        if self.loss_function == 'SmoothL1Loss':
-            return torch.nn.SmoothL1Loss()
-        elif self.loss_function == 'L1Loss':
-            return torch.nn.L1Loss()
+    def get_loss(self, loss_name):
+        if loss_name == 'BCELoss':
+            return torch.nn.BCELoss()
+        elif loss_name == 'BCEWithLogitsLoss':
+            return torch.nn.BCEWithLogitsLoss()
         else:
-            return torch.nn.MSELoss()
+            return torch.nn.BCELoss()
         
     def init_embeddings(self):
         '''
@@ -127,12 +116,8 @@ class EntEmbNNBinary(NeuralNet):
         '''
         
         # Get embedding sizes from categ. features
-        for f, le in self.labelencoders.items():
-            #If no hand-set a dimension for the emb. set default
-            
-            if not f in self.cat_emb_dim:
-                emb_dim = min(50, (len(le.classes_)) // 2 )
-                self.cat_emb_dim[f] = emb_dim
+        for f in self.cat_features:
+            le = self.labelencoders[f]
             
             emb_dim = self.cat_emb_dim[f]
             
@@ -157,7 +142,10 @@ class EntEmbNNBinary(NeuralNet):
         
         input_size = (
             # Numb of Embedding neurons in input layer
-            sum([sz for f, sz in self.cat_emb_dim.items()])
+            sum([
+                self.embeddings[f].weight.data.shape[1] 
+                for f in self.cat_features
+            ])
         ) + (
             # Numb of regular neurons for numerical features
             len(self.num_features)
@@ -168,7 +156,7 @@ class EntEmbNNBinary(NeuralNet):
         ) + (
             self.dense_layers
         ) + (
-            [2]
+            [1]
         )
         
         for layer_idx, current_layer_size in enumerate(NN_arquitecture[:-1]):
@@ -185,27 +173,18 @@ class EntEmbNNBinary(NeuralNet):
         """
         """
         # Identify categorical vs numerical features
-        self.cat_features = X.select_dtypes(include=['category']).columns
-        self.num_features = X.select_dtypes(exclude=['category']).columns
+        self.cat_features = list(self.cat_emb_dim.keys())
+        self.num_features = list(set(
+            self.X.columns.tolist()
+        ).difference(self.cat_features))
         
         # Create encoders for categorical features
         self.labelencoders = {}
         for c in self.cat_features:
             le = LabelEncoder()
-            le.fit(X[c].cat.codes + 1)
+            le.fit( X[c].astype(str).tolist())
             self.labelencoders[c] = le
-        
-        if len(self.num_features) > 0:
-            # Create scaler for numeric features
-            self.scaler = MinMaxScaler()
-            
-            # Set default nan as 2 times the greatest value
-            self.default_nan = X[self.num_features].max() * 2
-            
-            for c in self.num_features:
-                X[c].fillna(self.default_nan.loc[c], inplace=True)
-            
-            self.scaler.fit(X[self.num_features])
+
     
     def X_transform(self, X):
         """
@@ -213,27 +192,13 @@ class EntEmbNNBinary(NeuralNet):
         """
         X = X.copy()
         for c in self.cat_features:
-            codes = X[c].cat.codes + 1
-            is_unknown_codes = ~codes.isin(
-                self.labelencoders[c].classes_
-            )
-            codes[is_unknown_codes] = 0
+            codes = X[c].astype(str)
             X[c] = self.labelencoders[c].transform(
                 codes
             )
-            
-        if len(self.num_features) > 0:
-            for c in self.num_features:
-                X[c].fillna(self.default_nan[c], inplace=True)
         
-            X = pd.concat([
-                X[self.cat_features],
-                pd.DataFrame(
-                        self.scaler.transform(X[self.num_features]),
-                        index=X.index,
-                        columns=self.num_features)
-                ], axis=1)
-                
+        X = X[self.cat_features + self.num_features]
+        
         return X
     
     def X_emd_replace(self, data):
@@ -242,6 +207,7 @@ class EntEmbNNBinary(NeuralNet):
         embeddings and the respective continuous inputs.
         '''
         
+        #data = x
         ''' Replace embeddings '''
         data_emb = []
         for f_idx, f in enumerate(self.cat_features):
@@ -262,7 +228,7 @@ class EntEmbNNBinary(NeuralNet):
             
             data_emb.append(emb_cat)
         
-        ''' By-pass numeric '''
+        ''' Concat numeric features '''
         if len(self.num_features) > 0:
             data_emb.append(
                 data[:, len(self.cat_features):]
@@ -270,45 +236,13 @@ class EntEmbNNBinary(NeuralNet):
         
         return torch.cat(data_emb, 1)
     
-    def y_fit(self, y):
-        """
-        """
-        self.y_min = y.min()
-        if self.y_max is None:
-            self.y_max = y.max()
-        
-        if self.y_min > 0:
-            self.ly_max = np.log(self.y_max)
-        else:
-            self.ly_max = np.log1p(self.y.max)
-            
-        
-    def y_transform(self, y):
-        """
-        """
-        if self.y_min > 0:
-            return np.log(y) / self.ly_max
-        else:
-            return np.log1p(y) / self.ly_max
-        
-    def y_transform_inverse(self, y):
-        """
-        """
-        if self.y_min > 0:
-            return np.exp(y * self.ly_max)
-        else:
-            return np.exp(y * self.ly_max) - 1
-    
     def fit(self, X, y):
-        '''
-        X, y = X_train, y_train
-        
-        '''
+        """
+        """
         
         self.X = X.copy()
         self.y = y.copy()
         
-        self.y_fit(self.y)
         self.X_fit(self.X)
         
         self.split_train_test()
@@ -320,7 +254,7 @@ class EntEmbNNBinary(NeuralNet):
         # GPU Flag
         if self.allow_cuda:
             self.cuda()
-         
+        
         self.iterate_n_epochs(epochs=self.epochs)
     
     def iterate_n_epochs(self, epochs):
@@ -338,14 +272,12 @@ class EntEmbNNBinary(NeuralNet):
         
         while(self.epoch_cnt < self.epochs):
             self.train()
-            loss_func = self.get_loss()
+            loss_func = self.get_loss(self.loss_function)
             
             dataloader = self.make_dataloader(
                 # Format X such as categ.first then numeric.
                 self.X_transform(self.X_train),
-                # Normalize such as log(y) / y_log_max
-                self.y_transform(self.y_train)
-                
+                self.y_train
             )
             
             for batch_idx, (x, target) in enumerate(dataloader):
@@ -361,13 +293,10 @@ class EntEmbNNBinary(NeuralNet):
                     output.reshape(1, -1)[0],
                     target.float())
                 
-                # self.layers['l1'].weight.data
                 loss.backward()
                 self.optimizer.step()
                 
                 self.train_loss.append(loss.item())
-            
-            self.train_loss[:100]
             
             self.epoch_cnt += 1
             self.eval_model()
@@ -403,12 +332,32 @@ class EntEmbNNBinary(NeuralNet):
                     training=self.training)
                 
                 x = self.activ_func(x)
+            
             else:
-                x = F.sigmoid(x)
+                x = torch.sigmoid(x)
         
         return x
     
+    def predict_proba(self, X):
+        """ 
+        """
+        y_pred = self.predict_raw(X)
+        y_score = np.vstack([
+            1 - y_pred,
+            y_pred]).T
+        
+        return y_score
+    
     def predict(self, X):
+        """
+        """
+        
+        y_pred = self.predict_raw(X)
+        y_pred = (y_pred > .5).astype(int)
+        
+        return y_pred
+        
+    def predict_raw(self, X):
         '''
         Predict scores
         
@@ -434,7 +383,6 @@ class EntEmbNNBinary(NeuralNet):
             y_pred += output.data.numpy().flatten().tolist()
         
         y_pred = np.array(y_pred)
-        y_pred = self.y_transform_inverse(y_pred)
         
         return y_pred
     
@@ -469,26 +417,18 @@ class EntEmbNNBinary(NeuralNet):
         
         self.eval()
         
-        test_y_pred = self.predict(self.X_test)
-        
-        report = eval_utils.eval_regression(
-            y_true=self.y_transform(self.y_test),
-            y_pred=self.y_transform(test_y_pred))
-        
-        msg = "\t[%s] Test: MSE:%s MAE: %s gini: %s R2: %s MAPE: %s"
-        
-        msg_params = (
-            self.epoch_cnt, 
-            round(report['mean_squared_error'], 5),
-            round(report['mean_absolute_error'], 5),
-            round(report['gini_normalized'], 5),
-            round(report['r2_score'], 5),
-            round(report['mean_absolute_percentage_error'], 5))
+        test_y_score = self.predict_proba(self.X_test)
+        test_y_pred = (test_y_score[:, 1] > .5).astype(int)
+
+        report = eval_utils.classification_report(
+            y_true=self.y_test.values,
+            y_pred=test_y_pred,
+            y_score=test_y_score)
         
         self.epochs_reports.append(report)
         
         if self.verbose:
-            print(msg % (msg_params))
+            print(report)
 
 def test():
     import pandas as pd
@@ -496,48 +436,67 @@ def test():
     import eval_utils
     import numpy as np
     
-    X_train, y_train, X_test, y_test = datasets.get_X_train_test_data()
+    from sklearn.neural_network import MLPClassifier
+    from sklearn.preprocessing import MinMaxScaler
     
-    for data in [X_train, X_test]:
+    X, y, X_test, y_test = datasets.get_X_train_test_data()
+    
+    for data in [X, X_test]:
         data.drop('Open', inplace=True, axis=1)
     
-    for data in [X_train, X_test]:
+    for data in [X, X_test]:
         for f in data.columns:
             data[f] = data[f].cat.codes
     
-    models = []
-    for random_seed in range(5):
-        self = EntEmbNNBinary(
-            cat_emb_dim={
+    
+    y = np.log(y)
+    y_test = np.log(y_test)
+    
+    quantile = y.quantile(.8)
+    y = (y < quantile).astype(int)
+    y_test = (y_test < quantile).astype(int)
+    
+    params = {
+        'dense_layers':[100, 100],
+        'act_func': 'relu',
+        'alpha': 0.0001,
+        'batch_size': 64,
+        'lr': .001,
+        'epochs': 10,
+        'rand_seed': 1,
+    }
+    
+    self = EntEmbNNBinary(
+        cat_emb_dim={
+                'Month': 6,
                 'Store': 10,
-                'DayOfWeek': 6,
                 'Promo': 1,
                 'Year': 2,
-                'Month': 6,
+                'DayOfWeek': 6,
                 'Day': 10,
                 'State': 6},
-            alpha=0,
-            epochs=10,
-            dense_layers = [1000, 500],
-            drop_out_layers = [0., 0.],
-            drop_out_emb = 0.0,
-            loss_function='L1Loss',
-            train_size = 1.,
-            y_max = max(y_train.max(), y_test.max()),
-            random_seed=random_seed)
+        dense_layers = params['dense_layers'],
+        act_func =params['act_func'],
+        alpha=params['alpha'],
+        batch_size=params['batch_size'],
+        lr=params['lr'],
+        epochs=params['epochs'],
+        rand_seed=params['rand_seed'],
         
-        self.fit(X_train, y_train)
-        models.append(self)
-        print('\n')
+        drop_out_layers = [0., 0.],
+        drop_out_emb = 0.,
+        loss_function='BCELoss',
+        train_size=.8,
+        allow_cuda=False,
+        verbose=True)
     
-    test_y_pred = np.array([model.predict(X_test) for model in models])
-    test_y_pred = test_y_pred.mean(axis=0)
+    self.fit(X, y)
     
-    print("Mean Absolute Percentage Error")
-    print('XGB MAPE: %s' % eval_utils.MAPE(
-        y_true=y_test, 
-        y_pred=xgb_test_y_pred))
+    nn_y_pred = self.predict(X_test)
+    nn_y_score = self.predict_proba(X_test)
+    print((eval_utils.classification_report(
+            y_true=y_test, 
+            y_pred=nn_y_pred,
+            y_score=nn_y_score
+        )).round(5))
     
-    print('Ent.Emb. Neural Net MAPE: %s' % eval_utils.MAPE(
-        y_true=y_test.values.flatten(),
-        y_pred=test_y_pred))

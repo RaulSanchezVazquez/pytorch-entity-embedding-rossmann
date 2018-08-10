@@ -206,7 +206,7 @@ class EntEmbNNRegression(nn.Module):
                 a=-.05, b=.05)
             
             #Add emb. layer to model
-            self.add_module(f'[Emb {f}]', self.embeddings[f])
+            self.add_module('[Emb %s]' % f, self.embeddings[f])
     
     def init_dense_layers(self):
         '''
@@ -439,9 +439,11 @@ class EntEmbNNRegression(nn.Module):
         
         # Parse batch with embeddings
         x = self.X_emd_replace(x)
-        
+
         # Forward pass on dense layers
-        for layer_idx, (layer_name, layer) in enumerate(self.layers.items()):
+        for layer_idx in range(len(self.layers)):
+            layer_name = 'l%s' % (layer_idx + 1)
+            layer = self.layers[layer_name]
             
             is_inner_layer = (
                 layer_idx < len(self.dense_layers)
@@ -460,7 +462,7 @@ class EntEmbNNRegression(nn.Module):
                 
                 x = self.activ_func(x)
             else:
-                x = F.sigmoid(x)
+                x = torch.sigmoid(x)
         
         return x
     

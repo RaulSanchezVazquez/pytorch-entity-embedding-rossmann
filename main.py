@@ -12,38 +12,38 @@ import datasets
 import eval_utils
 import numpy as np
 
-import EntEmbNN as eenn
+import EENN as eenn
 import xgboost as xgb
 
-X_train, y_train, X_test, y_test = datasets.get_X_train_test_data()
-dtrain = xgb.DMatrix(
-    X_train.apply(lambda x: x.cat.codes),
-    label=np.log(y_train))
-evallist = [(dtrain, 'train')]
-param = {'nthread': 12,
-         'max_depth': 7,
-         'eta': 0.02,
-         'silent': 1,
-         'objective': 'reg:linear',
-         'colsample_bytree': 0.7,
-         'subsample': 0.7}
+#X_train, y_train, X_test, y_test = datasets.get_X_train_test_data()
+#dtrain = xgb.DMatrix(
+#    X_train.apply(lambda x: x.cat.codes),
+#    label=np.log(y_train))
+#evallist = [(dtrain, 'train')]
+#param = {'nthread': 12,
+#         'max_depth': 7,
+#         'eta': 0.02,
+#         'silent': 1,
+#         'objective': 'reg:linear',
+#         'colsample_bytree': 0.7,
+#         'subsample': 0.7}
+#
+#num_round = 3000
+#bst = xgb.train(param, dtrain, num_round, evallist, verbose_eval=False)
+#
+#xgb_test_y_pred = bst.predict(
+#    xgb.DMatrix(X_test.apply(lambda x: x.cat.codes))
+#)
+#xgb_test_y_pred = np.exp((xgb_test_y_pred))
 
-num_round = 3000
-bst = xgb.train(param, dtrain, num_round, evallist, verbose_eval=False)
 
-xgb_test_y_pred = bst.predict(
-    xgb.DMatrix(X_test.apply(lambda x: x.cat.codes))
-)
-xgb_test_y_pred = np.exp((xgb_test_y_pred))
-
-
-X_train, y_train, X_test, y_test = datasets.get_X_train_test_data()
-for data in [X_train, X_test]:
+X, y, X_test, y_test = datasets.get_X_train_test_data()
+for data in [X, X_test]:
     data.drop('Open', inplace=True, axis=1)
 
 models = []
 for _ in range(5):
-    m = eenn.EntEmbNNRegression(
+    self = eenn.EntEmbNNRegression(
         cat_emb_dim={
             'Store': 10,
             'DayOfWeek': 6,
@@ -59,9 +59,9 @@ for _ in range(5):
         drop_out_emb = 0.,
         loss_function='L1Loss',
         train_size = 1.,
-        y_max = max(y_train.max(), y_test.max()))
+        y_max = max(y.max(), y_test.max()))
     
-    m.fit(X_train, y_train)
+    self.fit(X, y)
     models.append(m)
     print('\n')
 
