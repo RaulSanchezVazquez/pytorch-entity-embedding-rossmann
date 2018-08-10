@@ -547,3 +547,4 @@ class EntEmbNNRegression(nn.Module):
         
         if self.verbose:
             print(msg % (msg_params))
+

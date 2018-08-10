@@ -19,7 +19,7 @@ from sklearn.preprocessing import MinMaxScaler
 import eval_utils
 from base_neural_net import NeuralNet
 
-class EntEmbNNRegression(NeuralNet):
+class EntEmbNN(NeuralNet):
     '''
     Parameters
     ----------
@@ -109,6 +109,10 @@ class EntEmbNNRegression(NeuralNet):
             return torch.nn.L1Loss()
         elif loss_name == 'MSELoss':
             return torch.nn.MSELoss()
+        elif loss_name == 'BCELoss':
+            return torch.nn.BCELoss()
+        elif loss_name == 'BCEWithLogitsLoss':
+            return torch.nn.BCEWithLogitsLoss()
         else:
             print(
                 'Invalid Loss name: %s, using default: %s' % (
@@ -423,6 +427,174 @@ class EntEmbNNRegression(NeuralNet):
         if self.verbose:
             print(msg % (msg_params))
 
+class EntEmbNNRegression(EntEmbNN):
+    '''
+    Parameters
+    ----------
+    cat_emb_dim : dict
+        Dictionary containing the embedding sizes.
+    
+    layers : list
+        NN. Layer arquitecture
+    drop_out_layers : dict
+        Dictionary with layer dropout
+    drop_out_emb : float
+        embedding drop out
+    batch_size : int
+        Mini Batch size
+    val_idx : list
+        
+    allow_cuda : bool
+    
+    act_func : string
+    
+    lr : float
+    
+    alpha : float
+    
+    epochs : int
+    '''
+    
+    def __init__(
+        self,
+        cat_emb_dim = {},
+        dense_layers = [1000, 500],
+        drop_out_layers = [0., 0.],
+        drop_out_emb = 0.,
+        act_func = 'relu',
+        loss_function='MSELoss',
+        train_size=1.,
+        batch_size=128,
+        epochs=10,
+        lr=0.001,
+        alpha=0.0,
+        rand_seed=1,
+        allow_cuda=False,
+        random_seed=None,
+        output_sigmoid=False,
+        verbose=True):
+        
+        super(EntEmbNNRegression, self).__init__()
+        
+        # Model specific params.
+        self.cat_emb_dim = cat_emb_dim
+        self.dense_layers = dense_layers
+        self.output_sigmoid = output_sigmoid
+        
+        # Reg. parameters
+        self.drop_out_layers = drop_out_layers
+        self.drop_out_emb = drop_out_emb
+        self.alpha = alpha
+        
+        # Training params
+        self.act_func = act_func
+        self.train_size = train_size
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.lr = lr
+        self.loss_function = loss_function
+        
+        # Misc
+        self.allow_cuda = allow_cuda
+        self.verbose = verbose
+        self.random_seed = random_seed
+        
+        # Internal        
+        self.embeddings = {}
+        self.train_loss = []
+        self.epochs_reports = []
+        
+        self.labelencoders = {}
+        self.scaler = None
+        
+        self.num_features = None
+        self.cat_features = None
+        self.layers = {}
+
+class EntEmbNNBinary(EntEmbNN):
+    '''
+    Parameters
+    ----------
+    cat_emb_dim : dict
+        Dictionary containing the embedding sizes.
+    
+    layers : list
+        NN. Layer arquitecture
+    drop_out_layers : dict
+        Dictionary with layer dropout
+    drop_out_emb : float
+        embedding drop out
+    batch_size : int
+        Mini Batch size
+    val_idx : list
+        
+    allow_cuda : bool
+    
+    act_func : string
+    
+    lr : float
+    
+    alpha : float
+    
+    epochs : int
+    '''
+    
+    def __init__(
+        self,
+        cat_emb_dim = {},
+        dense_layers = [1000, 500],
+        drop_out_layers = [0., 0.],
+        drop_out_emb = 0.,
+        act_func = 'relu',
+        loss_function='MSELoss',
+        train_size=1.,
+        batch_size=128,
+        epochs=10,
+        lr=0.001,
+        alpha=0.0,
+        rand_seed=1,
+        allow_cuda=False,
+        random_seed=None,
+        verbose=True):
+        
+        super(EntEmbNNRegression, self).__init__()
+        
+        # Model specific params.
+        self.cat_emb_dim = cat_emb_dim
+        self.dense_layers = dense_layers
+        
+        output_sigmoid=True,
+        self.output_sigmoid = output_sigmoid
+        
+        # Reg. parameters
+        self.drop_out_layers = drop_out_layers
+        self.drop_out_emb = drop_out_emb
+        self.alpha = alpha
+        
+        # Training params
+        self.act_func = act_func
+        self.train_size = train_size
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.lr = lr
+        self.loss_function = loss_function
+        
+        # Misc
+        self.allow_cuda = allow_cuda
+        self.verbose = verbose
+        self.random_seed = random_seed
+        
+        # Internal        
+        self.embeddings = {}
+        self.train_loss = []
+        self.epochs_reports = []
+        
+        self.labelencoders = {}
+        self.scaler = None
+        
+        self.num_features = None
+        self.cat_features = None
+
 def test():
     import pandas as pd
     import datasets
@@ -481,7 +653,6 @@ def test_pure_neural_net_vs_sklearn():
     import numpy as np
     
     from sklearn.neural_network import MLPRegressor
-    from sklearn.preprocessing import MinMaxScaler
     
     X, y, X_test, y_test = datasets.get_X_train_test_data()
     
@@ -501,15 +672,15 @@ def test_pure_neural_net_vs_sklearn():
         scaler.fit_transform(X_test),
         columns=X_test.columns)
     
-    y = np.log(y) / np.log(41551)
-    y_test = np.log(y_test) / np.log(41551)
+    y = np.log(y)
+    y_test = np.log(y_test)
 
     params = {
-        'dense_layers':[10, 10],
+        'dense_layers':[100, 100],
         'act_func': 'relu',
-        'alpha': 0.000,
+        'alpha': 0.0001,
         'batch_size': 64,
-        'lr': .0001,
+        'lr': .001,
         'epochs': 5,
         'rand_seed': 1,
     }
@@ -522,9 +693,9 @@ def test_pure_neural_net_vs_sklearn():
         batch_size=params['batch_size'],
         lr=params['lr'],
         epochs=params['epochs'],
-        rand_seed=params['rand_seed'],
+        #rand_seed=params['rand_seed'],
         
-        output_sigmoid=False,
+        #output_sigmoid=False,
         drop_out_layers = [0., 0.],
         drop_out_emb = 0.,
         loss_function='MSELoss',
@@ -564,4 +735,3 @@ def test_pure_neural_net_vs_sklearn():
             y_true=np.exp(y_test * np.log(41551)), 
             y_pred=np.exp(sk_y_pred * np.log(41551))
         )).round(5))
-    
