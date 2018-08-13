@@ -6,9 +6,10 @@ Created on Thu Aug  9 14:25:31 2018
 @author: lsanchez
 """
 
+import numpy as np
 
 from EENN import EntEmbNN
-
+import eval_utils
 
 class EntEmbNNBinary(EntEmbNN):
     '''
@@ -58,7 +59,7 @@ class EntEmbNNBinary(EntEmbNN):
         
         super(EntEmbNN, self).__init__()
         
-        # Model specific params.
+                # Model specific params.
         self.cat_emb_dim = cat_emb_dim
         self.dense_layers = dense_layers
         
@@ -93,3 +94,62 @@ class EntEmbNNBinary(EntEmbNN):
         
         self.num_features = None
         self.cat_features = None
+        self.layers = {}
+        
+        # Model specific params.
+        self.cat_emb_dim = cat_emb_dim
+        self.dense_layers = dense_layers
+        
+    def predict(self, X):
+        """
+        """
+        
+        y_proba = self.predict_raw(X)
+        y_pred = (y_proba > .5).astype(int)
+        
+        return y_pred
+    
+    def predict_proba(self, X):
+        """
+        """
+        
+        y_proba = self.predict_raw(X)
+        y_proba = np.vstack([
+            1 - y_proba, 
+            y_proba]).T
+        
+        return y_proba 
+        
+    def eval_model(self):
+        '''
+        Model evaluation
+        '''
+        
+        self.eval()
+        
+        y_proba = self.predict_proba(self.X_test)
+        y_pred = (y_proba[:, 1] > .5).astype(int)
+        
+        report = eval_utils.classification_report(
+            y_true=self.y_test,
+            y_pred=y_pred,
+            y_score=y_proba)
+        
+        
+        msg = "\t[%s] Test: precision:%s recall: %s f1: %s auc: %s pred: [0] %s / %s [1] %s / %s"
+        
+        msg_params = (
+            self.epoch_cnt, 
+            round(report['precision'].iloc[-1], 3),
+            round(report['recall'].iloc[-1], 3),
+            round(report['f1-score'].iloc[0], 3),
+            round(report['AUC'].iloc[0], 3),
+            int(report['support'][0]),
+            int(report['pred'][0]),
+            int(report['support'][1]),
+            int(report['pred'][1]))
+        
+        self.epochs_reports.append(report)
+        
+        if self.verbose:
+            print(msg % (msg_params))

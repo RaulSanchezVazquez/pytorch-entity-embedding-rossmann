@@ -6,8 +6,8 @@ Created on Thu Aug  9 14:25:31 2018
 @author: lsanchez
 """
 
-
 from EENN import EntEmbNN
+import eval_utils
 
 
 class EntEmbNNRegression(EntEmbNN):
@@ -93,3 +93,37 @@ class EntEmbNNRegression(EntEmbNN):
         self.num_features = None
         self.cat_features = None
         self.layers = {}
+        
+    def predict(self, X):
+        """
+        """
+        
+        return self.predict_raw(X)
+    
+    def eval_model(self):
+        '''
+        Model evaluation
+        '''
+        
+        self.eval()
+        
+        test_y_pred = self.predict(self.X_test)
+        
+        report = eval_utils.eval_regression(
+            y_true=self.y_test,
+            y_pred=test_y_pred)
+        
+        msg = "\t[%s] Test: MSE:%s MAE: %s gini: %s R2: %s MAPE: %s"
+        
+        msg_params = (
+            self.epoch_cnt, 
+            round(report['mean_squared_error'], 6),
+            round(report['mean_absolute_error'], 6),
+            round(report['gini_normalized'], 6),
+            round(report['r2_score'], 6),
+            round(report['mean_absolute_percentage_error'], 6))
+        
+        self.epochs_reports.append(report)
+        
+        if self.verbose:
+            print(msg % (msg_params))
