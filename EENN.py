@@ -399,7 +399,8 @@ class EntEmbNN(NeuralNet):
             dataloader = self.make_dataloader(
                 # Format X such as categ.first then numeric.
                 self.X_transform(self.X_train),
-                self.y_train
+                self.y_train,
+                shuffle=True,
             )
             for batch_idx, (x, target) in enumerate(dataloader):
                 self.optimizer.zero_grad()
