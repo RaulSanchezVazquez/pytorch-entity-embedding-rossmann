@@ -65,7 +65,7 @@ class EntEmbNN(NeuralNet):
         output_sigmoid=False,
         verbose=True):
         
-        super(EntEmbNNRegression, self).__init__()
+        super(EntEmbNN, self).__init__()
         
         # Model specific params.
         self.cat_emb_dim = cat_emb_dim
@@ -617,11 +617,11 @@ def test():
     for random_seed in range(5):
         self = EntEmbNNRegression(
             cat_emb_dim={
-                'Month': 6,
                 'Store': 10,
+                'DayOfWeek': 6,
                 'Promo': 1,
                 'Year': 2,
-                'DayOfWeek': 6,
+                'Month': 6,
                 'Day': 10,
                 'State': 6},
             alpha=0,
@@ -693,9 +693,6 @@ def test_pure_neural_net_vs_sklearn():
         batch_size=params['batch_size'],
         lr=params['lr'],
         epochs=params['epochs'],
-        #rand_seed=params['rand_seed'],
-        
-        #output_sigmoid=False,
         drop_out_layers = [0., 0.],
         drop_out_emb = 0.,
         loss_function='MSELoss',
