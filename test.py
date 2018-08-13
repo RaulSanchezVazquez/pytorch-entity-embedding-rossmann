@@ -123,6 +123,7 @@ def test_regression_pure_neural_net_vs_sklearn():
         learning_rate_init=params['lr'],
         max_iter=params['epochs'],
 
+
         solver='adam',
         learning_rate='constant',
         validation_fraction=0.,
