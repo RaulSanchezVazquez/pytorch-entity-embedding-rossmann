@@ -16,27 +16,26 @@ class EntEmbNNBinary(EntEmbNN):
     Parameters
     ----------
     cat_emb_dim : dict
-        Dictionary containing the embedding sizes.
-
-    layers : list
-        NN. Layer arquitecture
-    drop_out_layers : dict
-        Dictionary with layer dropout
+        { feature_name: int(emb_size) }
+    dense_layers : list
+        NN. architecture
+    drop_out_layers : list
+        Dropout in layers
     drop_out_emb : float
-        embedding drop out
+        Dropout in embeddings
+    act_func : str
+        Activation function {'relu', 'selu'}
+    loss_function : str
+        Pytorch loss-name
+    train_size : float
     batch_size : int
-        Mini Batch size
-    val_idx : list
-
-    allow_cuda : bool
-
-    act_func : string
-
-    lr : float
-
-    alpha : float
-
     epochs : int
+    lr : float
+    alpha : float
+    rand_seed : int
+    allow_cuda : bool
+    random_seed : int
+    verbose : bool
     '''
 
     def __init__(
@@ -55,6 +54,7 @@ class EntEmbNNBinary(EntEmbNN):
         rand_seed=1,
         allow_cuda=False,
         random_seed=None,
+        verbose_epoch=100,
         verbose=True):
 
         super(EntEmbNN, self).__init__()
@@ -82,6 +82,7 @@ class EntEmbNNBinary(EntEmbNN):
         # Misc
         self.allow_cuda = allow_cuda
         self.verbose = verbose
+        self.verbose_epoch = verbose_epoch
         self.random_seed = random_seed
 
         # Internal

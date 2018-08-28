@@ -8,6 +8,7 @@ Created on Fri Jun  1 17:51:34 2018
 
 import numpy as np
 import pandas as pd
+import pickle
 from sklearn.utils.validation import check_X_y
 from sklearn.model_selection import train_test_split
 from sklearn.base import BaseEstimator, RegressorMixin
@@ -53,7 +54,8 @@ class NeuralNet(nn.Module, BaseEstimator, RegressorMixin):
         train_size=.8,
         batch_size=128,
         random_seed=None,
-        verbose=True):
+        verbose=True,
+        verbose_epoch=100):
 
         super(NeuralNet, self).__init__()
 
@@ -62,6 +64,7 @@ class NeuralNet(nn.Module, BaseEstimator, RegressorMixin):
         self.train_size = train_size
         self.batch_size = int(batch_size)
         self.verbose = verbose
+        self.verbose_epoch = verbose_epoch
         self.random_seed = random_seed
 
         if not(self.random_seed is None):
@@ -428,6 +431,12 @@ class EntEmbNN(NeuralNet):
 
                 train_epoch_loss.append(loss.item())
 
+                if (batch_idx % self.verbose_epoch) == 0:
+                    print('\t\t%s' % (
+                        sum(train_epoch_loss) / len(train_epoch_loss)
+                        )
+                    )
+
             self.train_epoch_loss.append(
                 sum(train_epoch_loss) / len(train_epoch_loss)
             )
@@ -502,26 +511,85 @@ class EntEmbNN(NeuralNet):
 
         return y_pred
 
-    def get_embeddings(self):
+#    def get_embeddings(self):
+#
+#        embeddings = {}
+#        for c in self.cat_features:
+#            categ_names = self.X[c].drop_duplicates()
+#            categ_codes = categ_names.cat.codes
+#            categories = pd.Series(
+#                [x for x in categ_names],
+#                index=categ_codes.values)
+#            categories.sort_index(inplace=True)
+#            categories.index = categories.index + 1
+#
+#            emb = self.embeddings[c].weight.data
+#            if self.allow_cuda:
+#                emb = emb.cpu()
+#
+#            emb = pd.DataFrame(
+#                emb.numpy(),
+#                index=categories.values)
+#            emb = emb.add_prefix('latent_')
+#            embeddings[c] = emb
+#
+#        return embeddings
+    def dump_embeddings(self, emb_path):
+        """
+        Dump embeddings to hdf file.
+        """
+        print('Saving in: %s' % emb_path)
+        for emb_name, emb_pytorch in self.embeddings.items():
+            emb = pd.DataFrame(
+                emb_pytorch.weight.data.numpy(),
+                index=self.labelencoders[emb_name].classes_)
+            print('\t%s' % emb_name)
 
-        embeddings = {}
-        for c in self.cat_features:
-            categ_names = self.X[c].drop_duplicates()
-            categ_codes = categ_names.cat.codes
-            categories = pd.Series(
-                [x for x in categ_names],
-                index=categ_codes.values)
-            categories.sort_index(inplace=True)
-            categories.index = categories.index + 1
+            emb.to_hdf(emb_path, key=emb_name)
 
-            emb = self.embeddings[c].weight.data
-            if self.allow_cuda:
-                emb = emb.cpu()
+    def get_data_embeddings(self, X_raw):
+        """
+        Transforma a X matrix substituing the embeddings on the X matrix.
+        """
+
+        data_emb = []
+        for emb_name in self.cat_features:
+
+            emb_pytorch = self.embeddings[emb_name]
 
             emb = pd.DataFrame(
-                emb.numpy(),
-                index=categories.values)
-            emb = emb.add_prefix('latent_')
-            embeddings[c] = emb
+                emb_pytorch.weight.data.numpy(),
+                index=self.labelencoders[emb_name].classes_
+            ).add_prefix('%s_' % emb_name)
 
-        return embeddings
+            x = emb.loc[X_raw[emb_name]]
+            x = x.reset_index().drop('index', axis=1)
+            x.index = X_raw.index
+
+            data_emb.append(x)
+
+        data_emb.append(X_raw[self.num_features])
+
+        X_emb = pd.concat(data_emb, axis=1)
+
+        return X_emb
+
+    def load(self, filename):
+        """
+        Loads a saved model
+        """
+
+        f = open(filename, 'rb')
+        tmp_dict = pickle.load(f)
+        f.close()
+
+        self.__dict__.update(tmp_dict)
+
+    def save(self, filename):
+        """
+        Saves as pickle object
+        """
+
+        f = open(filename, 'wb')
+        pickle.dump(self.__dict__, f, 2)
+        f.close()
