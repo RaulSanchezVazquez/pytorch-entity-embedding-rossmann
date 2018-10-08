@@ -95,7 +95,8 @@ class NeuralNet(nn.Module, BaseEstimator, RegressorMixin):
         if y is None:
             y = pd.Series([0] * X.shape[0])
 
-        X, y = check_X_y(X, y.values.ravel())
+        check_X_y(X, y.values.ravel())
+
         X = pd.DataFrame(X)
         y = pd.Series(y)
 
@@ -431,11 +432,12 @@ class EntEmbNN(NeuralNet):
 
                 train_epoch_loss.append(loss.item())
 
-                if (batch_idx % self.verbose_epoch) == 0:
-                    print('\t\t%s' % (
-                        sum(train_epoch_loss) / len(train_epoch_loss)
-                        )
-                    )
+                # if (batch_idx % self.verbose_epoch) == 0:
+                #     if self.verbose:
+                #         print('\t\t%s' % (
+                #             sum(train_epoch_loss) / len(train_epoch_loss)
+                #             )
+                #         )
 
             self.train_epoch_loss.append(
                 sum(train_epoch_loss) / len(train_epoch_loss)

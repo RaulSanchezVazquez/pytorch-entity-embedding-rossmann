@@ -59,11 +59,11 @@ class EntEmbNNBinary(EntEmbNN):
 
         super(EntEmbNN, self).__init__()
 
-                # Model specific params.
+        # Model specific params.
         self.cat_emb_dim = cat_emb_dim
         self.dense_layers = dense_layers
 
-        output_sigmoid=True,
+        output_sigmoid = True,
         self.output_sigmoid = output_sigmoid
 
         # Reg. parameters
@@ -74,8 +74,8 @@ class EntEmbNNBinary(EntEmbNN):
         # Training params
         self.act_func = act_func
         self.train_size = train_size
-        self.batch_size = batch_size
-        self.epochs = epochs
+        self.batch_size = int(batch_size)
+        self.epochs = int(epochs)
         self.lr = lr
         self.loss_function = loss_function
 
