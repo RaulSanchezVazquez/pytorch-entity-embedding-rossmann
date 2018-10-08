@@ -5,18 +5,17 @@ This is a Pytorch implementation with sklearn model interface for which most DS 
 
 This implementation reproduces the code used in the paper **"[Entity Embeddings of Categorical Variables](http://arxiv.org/abs/1604.06737)"** and extends its functionality to other Machine Learning problems. 
 
-The original Keras code used as benchmark can be found in: 
+The original Keras code used as a benchmark can be found in: 
 **Entity Embeddings of Categorical Variables [REPO](https://github.com/entron/entity-embedding-rossmann)**.
 
 # Notes
 
-This repo aimes to provide an Entity Embedding Neural Network out-of-the-box model for Regression and Classification tasks.
+This repo aims to provide an Entity Embedding Neural Network out-of-the-box model for Regression and Classification tasks.
 
 To this date this repo has implemented:
 
-- Regression (tested on original implimentation in here).
+- Regression (tested on original implementation in here).
 - Binary Classification (used `EntEmbNNBinary` instead of `EntEmbNNRegression`) (tested on personal projects).
-
 
 
 ```python
